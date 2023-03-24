@@ -9,7 +9,7 @@ import time
 import hashlib
 import re
 import os
-
+import uvicorn
 app = FastAPI()
 origins = ["*"] # Allow all origins
 
@@ -179,3 +179,7 @@ async def delete_item(item_id: int):
     cursor.execute("DELETE FROM websec WHERE id=%s", (item_id,))
     connection.commit()
     return {"message": "Item deleted"}
+
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
