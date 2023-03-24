@@ -51,12 +51,12 @@ user = os.getenv("ID")
 password = os.getenv("PASSWORD")
 db = os.getenv("DB")
 # Connect to MySQL database
-connection = pymysql.connect(
-    host=host,
-    user=user,
-    password=password,
-    db=db,
-)
+# connection = pymysql.connect(
+#     host=host,
+#     user=user,
+#     password=password,
+#     db=db,
+# )
 
 current_token = None
 
@@ -90,6 +90,12 @@ async def create_item(item: AddItem):
     try:
         if item.token != current_token:
             raise HTTPException(status_code=403, detail="Invalid token")
+        connection = pymysql.connect(
+            host=host,
+            user=user,
+            password=password,
+            db=db,
+        )
         cursor = connection.cursor()
         cursor.execute("SELECT * FROM websec WHERE id=%s", (item.id,))
         result = cursor.fetchone()
@@ -98,6 +104,7 @@ async def create_item(item: AddItem):
         cursor.execute("INSERT INTO websec (id, name, description, price, quantity) VALUES (%s, %s, %s, %s, %s)",
                        (item.id, item.name, item.description, item.price, item.quantity))
         connection.commit()
+        connection.close()
         return {"result": True}
     except Exception as e:
         print(e)
@@ -111,12 +118,19 @@ async def send_message(item: Feedback):
             raise HTTPException(status_code=403, detail="Invalid token")
         if not validate_email(item.email):
             raise HTTPException(status_code=400, detail="Invalid email")
+        connection = pymysql.connect(
+            host=host,
+            user=user,
+            password=password,
+            db=db,
+        )
         cursor = connection.cursor()
         timestamp = str(datetime.datetime.now())
         print("Request", item)
         cursor.execute("INSERT INTO contact_messages (id, name, email, title, message) VALUES (%s, %s, %s, %s, %s)",
                        (timestamp, item.name, item.email, item.title, item.message))
         connection.commit()
+        connection.close()
         return {"result": True}
     except Exception as e:
         print(e)
@@ -131,6 +145,12 @@ async def read_all_items(request: Request):
         token = req['token']
         if token != current_token:
             raise HTTPException(status_code=403, detail="Invalid token")
+        connection = pymysql.connect(
+            host=host,
+            user=user,
+            password=password,
+            db=db,
+        )
         cursor = connection.cursor()
         cursor.execute("SELECT * FROM websec")
         results = cursor.fetchall()
@@ -138,47 +158,49 @@ async def read_all_items(request: Request):
         for result in results:
             item = Item(id=result[0], name=result[1], description=result[2], price=result[3], quantity=result[4])
             items.append(item)
+        connection.close()
         return {"result": True, "items": items}
     except Exception as e:
         print(e)
         return {"result": False}
 
 # Read one
-@app.get("/items/{item_id}")
-async def read_item(item_id: int):
-    cursor = connection.cursor()
-    cursor.execute("SELECT * FROM websec WHERE id=%s", (item_id,))
-    result = cursor.fetchone()
-    if result is None:
-        raise HTTPException(status_code=404, detail="Item not found")
-    item = Item(id=result[0], name=result[1], description=result[2], price=result[3], quantity=result[4])
-    return {"item": item}
-
-# Update
-@app.put("/items/{item_id}")
-async def update_item(item_id: int, item: Item):
-    cursor = connection.cursor()
-    cursor.execute("SELECT * FROM websec WHERE id=%s", (item_id,))
-    result = cursor.fetchone()
-    if result is None:
-        raise HTTPException(status_code=404, detail="Item not found")
-    cursor.execute("UPDATE websec SET name=%s, description=%s, price=%s, quantity=%s WHERE id=%s",
-                   (item.name, item.description, item.price, item.quantity, item_id))
-    connection.commit()
-    item.id = item_id
-    return {"message": "Item updated", "item": item}
-
-# Delete
-@app.delete("/items/{item_id}")
-async def delete_item(item_id: int):
-    cursor = connection.cursor()
-    cursor.execute("SELECT * FROM websec WHERE id=%s", (item_id,))
-    result = cursor.fetchone()
-    if result is None:
-        raise HTTPException(status_code=404, detail="Item not found")
-    cursor.execute("DELETE FROM websec WHERE id=%s", (item_id,))
-    connection.commit()
-    return {"message": "Item deleted"}
+# @app.get("/items/{item_id}")
+# async def read_item(item_id: int):
+#
+#     cursor = connection.cursor()
+#     cursor.execute("SELECT * FROM websec WHERE id=%s", (item_id,))
+#     result = cursor.fetchone()
+#     if result is None:
+#         raise HTTPException(status_code=404, detail="Item not found")
+#     item = Item(id=result[0], name=result[1], description=result[2], price=result[3], quantity=result[4])
+#     return {"item": item}
+#
+# # Update
+# @app.put("/items/{item_id}")
+# async def update_item(item_id: int, item: Item):
+#     cursor = connection.cursor()
+#     cursor.execute("SELECT * FROM websec WHERE id=%s", (item_id,))
+#     result = cursor.fetchone()
+#     if result is None:
+#         raise HTTPException(status_code=404, detail="Item not found")
+#     cursor.execute("UPDATE websec SET name=%s, description=%s, price=%s, quantity=%s WHERE id=%s",
+#                    (item.name, item.description, item.price, item.quantity, item_id))
+#     connection.commit()
+#     item.id = item_id
+#     return {"message": "Item updated", "item": item}
+#
+# # Delete
+# @app.delete("/items/{item_id}")
+# async def delete_item(item_id: int):
+#     cursor = connection.cursor()
+#     cursor.execute("SELECT * FROM websec WHERE id=%s", (item_id,))
+#     result = cursor.fetchone()
+#     if result is None:
+#         raise HTTPException(status_code=404, detail="Item not found")
+#     cursor.execute("DELETE FROM websec WHERE id=%s", (item_id,))
+#     connection.commit()
+#     return {"message": "Item deleted"}
 
 
 if __name__ == "__main__":
